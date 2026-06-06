@@ -1,0 +1,12 @@
+#!/bin/sh
+set -e
+
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+
+if [ -f .venv/bin/activate ]; then
+  . .venv/bin/activate
+fi
+
+echo "Running tests..."
+python -m pytest
