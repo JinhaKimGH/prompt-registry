@@ -3,14 +3,12 @@
 from __future__ import annotations
 
 import json
-import re
 from datetime import datetime
 from pathlib import Path
 
 from prompt_registry.db import DEFAULT_DB_PATH, get_connection
 from prompt_registry.models import Deployment, Prompt, PromptVersion
-
-_FIELD_NAME = re.compile(r"\{([^{}]+)\}")
+from prompt_registry.template import extract_variables
 
 
 class PromptNotFoundError(LookupError):
@@ -42,18 +40,6 @@ def _format_dt(dt: datetime) -> str:
 
 def _parse_dt(value: str) -> datetime:
     return datetime.fromisoformat(value)
-
-
-def _extract_variables(template: str) -> list[str]:
-    """Extract unique {variable} names from a template, in first-seen order."""
-    seen: set[str] = set()
-    variables: list[str] = []
-    for match in _FIELD_NAME.finditer(template):
-        name = match.group(1).strip()
-        if name and name not in seen:
-            seen.add(name)
-            variables.append(name)
-    return variables
 
 
 def _row_to_version(row) -> PromptVersion:
@@ -137,7 +123,7 @@ def push_version(
     db_path: Path = DEFAULT_DB_PATH,
 ) -> PromptVersion:
     """Append a new immutable version for an existing prompt."""
-    variables = _extract_variables(template)
+    variables = extract_variables(template)
     created_at = _utcnow()
 
     with get_connection(db_path) as conn:
