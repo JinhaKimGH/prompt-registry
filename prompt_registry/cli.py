@@ -1,7 +1,14 @@
+import sys
+
 import typer
 
 from prompt_registry.db import init_db
-from prompt_registry.store import PromptAlreadyExistsError, create_prompt
+from prompt_registry.store import (
+    PromptAlreadyExistsError,
+    PromptNotFoundError,
+    create_prompt,
+    push_version,
+)
 
 app = typer.Typer(help="Git-style versioning for LLM prompts.")
 
@@ -20,6 +27,27 @@ def create(name: str, description: str = typer.Option(..., "--description", "-d"
         typer.echo(f"Prompt {name!r} already exists.", err=True)
         raise typer.Exit(1)
     typer.echo(f"Prompt {name!r} created successfully.")
+
+@app.command()
+def push(
+    name: str, 
+    message: str = typer.Option(..., "--message", "-m"),
+    file: typer.FileText | None = typer.Option(None, "--file", "-f"),
+) -> None:
+    """Push a new version of a prompt."""
+    if file is not None:
+        template = file.read()
+    else:
+        template = sys.stdin.read()
+    if not template.strip():
+        typer.echo("Template is empty.", err=True)
+        raise typer.Exit(1)
+    try:
+        version = push_version(name, template, message)
+    except PromptNotFoundError:
+        typer.echo(f"Prompt {name!r} not found.", err=True)
+        raise typer.Exit(1)
+    typer.echo(f"Pushed {name!r} v{version.version}.")
 
 if __name__ == "__main__":
     app()
